@@ -20,17 +20,33 @@ Update this file whenever the current phase, active feature, or implementation s
   - `components/editor/editor-shell.tsx` (not in the spec) — thin client component owning the sidebar open state; renders navbar + sidebar over a placeholder canvas area. Mounted from `app/page.tsx` so the chrome is reachable.
   - Verified: `tsc` and `eslint` clean, `next build` passes, compiled CSS contains the slide/opacity/radius classes, SSR sidebar is `inert`. Not yet checked visually in a browser.
 
+- 03 Auth (`context/feature-specs/03-auth.md`):
+  - `@clerk/ui` installed (`@clerk/nextjs` was already present).
+  - `lib/clerk-appearance.ts` — Clerk `dark` theme from `@clerk/ui/themes` with `variables` mapped to the app's CSS variables (`var(--bg-surface)`, `var(--accent-primary)`, ...); no hardcoded colors.
+  - `app/layout.tsx` — `ClerkProvider` wraps the body content with that appearance.
+  - `proxy.ts` (project root, not `middleware.ts`) — `clerkMiddleware`; public routes are the sign-in/sign-up URLs from `NEXT_PUBLIC_CLERK_SIGN_IN_URL` / `NEXT_PUBLIC_CLERK_SIGN_UP_URL` (falling back to `/sign-in`, `/sign-up`); everything else calls `auth.protect()`.
+  - `app/(auth)/sign-in/[[...sign-in]]` and `app/(auth)/sign-up/[[...sign-up]]` pages render Clerk `SignIn` / `SignUp` inside `components/auth/auth-shell.tsx`: two-panel at `lg` (compact logo, tagline, text-only feature list on the left, centered form on the right), form only below `lg`. No gradients, cards, or hero.
+  - `app/page.tsx` — server redirect: authenticated → `/editor`, unauthenticated → `/sign-in`.
+  - Editor page moved from `app/(editor)/page.tsx` to `app/(editor)/editor/page.tsx` (it previously collided with `app/page.tsx` at `/`).
+  - `components/editor/editor-navbar.tsx` — Clerk `UserButton` in the right section, default menu untouched.
+  - Auth UI revision (from a reference screenshot; this supersedes the spec's "text-only feature list"): `auth-shell.tsx` is an exact 50/50 split at `lg`. The left panel is tinted with the `accent-dim` token over `surface` (solid, no gradient) and holds the logo, headline, intro paragraph, three features with a small lucide icon, title and description, and a copyright line. Below `lg` only the form shows.
+  - `ClerkProvider` now receives `ui={ui}` from `@clerk/ui`, so the installed UI package renders instead of the CDN copy. The CDN copy ignored the installed package's `Appearance` options. In this version the social-button variant is `options.socialButtonsVariant`, not `layout`. Social buttons are stacked full-width with a border token, and the label is "Continue with {provider}" via `clerkLocalization` in `lib/clerk-appearance.ts`.
+  - Fonts: verified in a browser that every element on `/sign-in`, including Clerk's inputs and buttons, computes to Geist Sans and the Geist font file loads. The `--font-sans` / `html` wiring was already correct.
+  - Verified: `tsc` and `eslint` clean, `next build` passes (routes: `/`, `/editor`, `/sign-in`, `/sign-up`, Proxy). Against `next start` unauthenticated: `/` and `/editor` return 307 to `/sign-in`; `/sign-in` and `/sign-up` return 200. Not yet checked while signed in or visually in a browser.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- 03 (next feature spec, not yet written).
+- 04 (next feature spec, not yet written).
 
 ## Open Questions
 
 - `ui-context.md` says the dark palette is defined in `globals.css`, but it was not there (not in the original commit either). It was added from the `ui-context.md` table during 01. Confirm this is the intended source of truth.
+
+- `.env.local` had only the Clerk publishable and secret keys, so the sign-in/sign-up env vars the 03 spec refers to did not exist. Without them `auth.protect()` redirected to Clerk's hosted accounts domain instead of `/sign-in`. Added Clerk's standard `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in` and `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up` to `.env.local` (gitignored). Any other environment (Vercel, teammates) needs the same two vars.
 
 ## Architecture Decisions
 
